@@ -1,0 +1,38 @@
+NAME
+    Thread::SigHandler - start a dedicated thread to handle signals
+
+SYNOPSIS
+     use Thread::SigHandler;
+     my $handler = Thread::SigHandler->new(
+       SIGTERM => \&foo,
+     );
+
+TODO
+    This is admittedly not the most elegant solution to signal handling in
+    threads, but POSIX didn't exactly make it easy on any implementation to
+    do so.
+
+    Perl 5.005 using Threads.pm had a simpler solution in Thread::Signal
+    that started a dedicated thread as soon as the module was loaded;
+    signals caught in any other thread were written to a pipe that was
+    shared among all threads. The default-to-unshared semantics of ithreads
+    prevents this direct approach, as the signal handling actions must be in
+    memory prior to the signal handling thread being started.
+
+    Liz (<liz@dijkmat.nl>) created a new version of Thread::Signal which
+    does something slightly different: it allows you to send a signal to a
+    specific thread. This only works on thread implementations that use
+    pseudo-processes (which conversely don't have the issue of not knowing
+    which thread will receive a signal). Apparantly fewer and fewer systems
+    are using pseudo-process implementations, so going forward the approach
+    laid out in Thread::SigHandler may be more compatible.
+
+AUTHOR
+    James FitzGibbon <jfitz@CPAN.org>
+
+COPYRIGHT
+    Copyright (c) 2003, James FitzGibbon. All Rights Reserved.
+
+    This module is free software. You may use it under the same terms as
+    perl itself.
+

@@ -1,0 +1,11 @@
+Build.PL
+ChangeLog
+ChangeLog.xml
+lib/Thread/SigHandler.pm
+Makefile.PL
+MANIFEST			This list of files
+META.yml
+README
+t/01_use.t
+t/02_pod.t
+t/03_basic.t

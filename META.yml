@@ -1,0 +1,16 @@
+--- #YAML:1.0
+name: Thread-SigHandler
+version: 0.10
+license: perl
+distribution_type: module
+requires: {}
+recommends: {}
+build_requires:
+  Test::Exception: 0
+  Test::More: 0
+conflicts: {}
+provides:
+  Thread::SigHandler:
+    file: lib/Thread/SigHandler.pm
+    version: 0.10
+generated_by: Module::Build version 0.21
