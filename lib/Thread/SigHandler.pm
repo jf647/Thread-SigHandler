@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: SigHandler.pm,v 1.1 2003/12/29 00:40:18 james Exp $
 #
 
 =head1 NAME
@@ -23,9 +23,116 @@ use threads;
 
 our $VERSION = '0.10';
 
-# create the signal handler thread
+use Carp        qw|croak|;
+use Config;
+
+# create a sighandler object
 sub new
 {
+    
+    my $self = shift;
+    my $class = ref $self || $self;
+    my %args = @_;
+    
+    # create mappings from signal name to number and back
+    my $i = 0;
+    my %signum;
+    my @signame;
+    defined $Config{sig_name} || die "No sigs?";
+    foreach my $name (split(/\s+/, $Config{sig_name})) {
+        $signum{$name} = $i;
+        $signame[$i] = $name;
+        $i++;
+    }
+    
+    # create a hash of signal numbers to actions
+    my %sigs2acts;
+    while( my($sig, $action) = each %args ) {
+        
+        # make sure the action is a coderef
+        unless( ref $action eq 'CODE' ) {
+            croak("action for signal $sig is not a coderef");
+        }
+        
+        # if it's a number, make sure it's valid
+        if( $sig =~ m/^\d+$/ ) {
+            unless( defined $signame[$sig] ) {
+                croak("invalid signal number $sig");
+            }
+            $sigs2acts{$sig} = $action;
+        }
+        
+        # otherwise try to get the number from the name
+        elsif( defined $signum{$sig} ) {
+            $sigs2acts{$signum{$sig}} = $action;
+        }
+        
+        # otherwise it must be invalid
+        else {
+            croak("invalid signal $sig\n");
+        }
+        
+    }
+    
+    # create the object
+    $self = bless { actions => \%sigs2acts }, $class;
+    
+    # start the signal handling thread
+    $self->start_sighandler;
+    
+    return $self;
+    
+}
+
+# start the dedicated sighandler thread
+sub start_sighandler
+{
+    
+    my $self = shift;
+    
+    # block registered signals in the calling thread
+    require POSIX;
+    my $sigset = POSIX::SigSet->new( keys %{ $self->{actions} } );
+    unless( defined POSIX::sigprocmask(&POSIX::SIG_BLOCK, $sigset) ) {
+        croak("could not block registered signals in calling thread");
+    }
+    $self->{sigset} = $sigset;
+
+    # start a dedicated signal handling thread
+    my $thread = threads->create('sighandler', $self);
+    
+    # remember the thread object id
+    $self->{handler_tid} = $thread->tid;
+    
+    return $self;
+    
+    
+}
+
+# the dedicated thread that receives signals
+sub sighandler
+{
+    
+    my $self = shift;
+    
+    # create sigactions for each registered signal
+    while( my($sig, $action) = each %{ $self->{actions} } ) {
+        my $sigaction = POSIX::SigAction->new($sig, $self->{sigset});
+        unless( defined POSIX::sigaction($sig, $sigaction) ) {
+            croak("could not register signal handler for sig $sig");
+        }
+    }
+    
+    # unblock the registered signals (we inherited the block)
+    unless( defined POSIX::sigprocmask(&POSIX::SIG_UNBLOCK, $self->{sigset}) ) {
+        croak("could not unblock registered signals in dedicated thread");
+    }
+    
+    # wait for signals to come in
+    while( 1 ) { # do forever
+        select(undef, undef, undef, 5);
+    }
+    
 }
 
 # keep require happy
@@ -95,11 +202,19 @@ started), C<handle_sigterm()> will be an undefined subroutine. The
 subsequent re-definition of the subroutine will not be seen in the dedicated
 thread due to the default-to-unshared semantics of ithreads.
 
+If you need to change signal handling actions after the dedicated thread has
+been started, you can use the B<shutdown> method to stop the dedicated
+thread and then start another with a different set of signal actions.
+
 The constructor returns an Thread::SigHandler object which can be used to
 shut down the dedicated thread later on in the program. The signal handling
 thread will be shut down when this object goes out of scope. Any error in
 the constructor will throw an exception (another reason to start the thread
 as early as possible).
+
+=head1 METHODS
+
+=head2 shutdown()
 
 =head1 COMPATIBILITY
 
@@ -117,7 +232,9 @@ implementation.
 
 This is admittedly not the most elegant solution to signal handling in
 threads, but POSIX didn't exactly make it easy on any implementation to do
-so.
+so. I'd like to make this module allow for simple signal management in a
+threaded program, possibly still allowing for redefinition of actions after
+the dedicated thread has been started.
 
 Perl 5.005 using Threads.pm had a simpler solution in Thread::Signal that
 started a dedicated thread as soon as the module was loaded; signals caught

@@ -1,0 +1,9 @@
+2003-12-28 18:40  james
+
+	* lib/Thread/SigHandler.pm, t/01_use.t, t/02_pod.t, t/03_basic.t,
+	  MANIFEST, META.yml, README: [no log message]
+
+2003-12-28 17:24  james
+
+	* Build.PL: [no log message]
+
