@@ -1,5 +1,5 @@
 #
-# $Id: SigHandler.pm,v 1.1 2003/12/29 00:40:18 james Exp $
+# $Id$
 #
 
 =head1 NAME
